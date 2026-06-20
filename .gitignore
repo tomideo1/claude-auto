@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+# Runtime state — keep the dirs (.gitkeep) but not the live files.
+state/pool.json
+state/budget.json
+state/jobs/*
+!state/jobs/.gitkeep
+.DS_Store

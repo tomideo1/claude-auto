@@ -1,0 +1,6 @@
+#!/bin/bash
+# Wrapper that invokes the hive MCP controller via the project's venv.
+# This is what claude's --mcp-config spawns.
+set -e
+HIVE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$HIVE_ROOT/.venv/bin/python" -m hive.hive_controller "$@"

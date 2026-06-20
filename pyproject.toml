@@ -1,0 +1,22 @@
+[project]
+name = "claude-auto"
+version = "0.1.0"
+description = "Rotate Claude Code across multiple accounts on rate-limit, resuming the same session by directory. Includes an optional multi-agent (hive) layer."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=0.9"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+claude-auto = "hive.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hive*"]

@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""Thin wrapper that puts ~/projects/hive on sys.path and dispatches to hive.cli."""
+import os
+import sys
+from pathlib import Path
+
+HIVE_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(HIVE_ROOT))
+
+from hive.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)
