@@ -185,15 +185,15 @@ def main() -> int:
         _print_status(pool)
         return 0
 
+    initial_name: str | None = None
     if flags["account"]:
-        try:
-            pool.cli_set_account(flags["account"])
-        except Exception:
+        if flags["account"] not in [n for n, _ in accounts]:
             print(f"unknown account: {flags['account']}", file=sys.stderr)
             print("available:", ", ".join(n for n, _ in accounts), file=sys.stderr)
             return 2
+        initial_name = flags["account"]
 
-    return _run_loop(pool, accounts, claude_args, rate_limit_re)
+    return _run_loop(pool, accounts, claude_args, rate_limit_re, initial_name=initial_name)
 
 
 # --------------------------------------------------------------- queen
@@ -684,7 +684,7 @@ def _hive_prune_worktrees() -> int:
     return 0
 
 
-def _run_loop(pool, accounts, claude_args, rate_limit_re) -> int:
+def _run_loop(pool, accounts, claude_args, rate_limit_re, initial_name: str | None = None) -> int:
     cwd = Path.cwd()
     first = True
     # Exhaustion guard: count consecutive accounts that hit a limit immediately
@@ -694,10 +694,22 @@ def _run_loop(pool, accounts, claude_args, rate_limit_re) -> int:
     consecutive_fast_limits = 0
     exhausted_accounts: list[tuple[str, str | None]] = []
     n_accounts = len(accounts)
+    account_names = [n for n, _ in accounts]
+
+    # Track the current account in-memory per session.  Reading current_cli_idx
+    # from pool.json on every iteration causes concurrent sessions to fight: if
+    # Session A calls cli_advance() after a rate-limit, it overwrites the shared
+    # index and Session B's next loop iteration lands on the wrong account,
+    # ignoring whatever --account was passed.
+    if initial_name and initial_name in account_names:
+        local_idx = account_names.index(initial_name)
+    else:
+        # Consult shared state only once at startup (no --account given).
+        local_idx = pool.cli_idx_of(pool.cli_current().name)
 
     while True:
-        acct = pool.cli_current()
-        idx = pool.cli_idx_of(acct.name)
+        acct = pool.by_name(account_names[local_idx])
+        idx = local_idx
         sys.stderr.write(f"\r\n→ Account: {acct.name} ({idx + 1}/{n_accounts})\r\n")
         sys.stderr.flush()
         pool.cli_touch(acct.name)
@@ -743,11 +755,11 @@ def _run_loop(pool, accounts, claude_args, rate_limit_re) -> int:
             sys.stderr.flush()
             return 1
 
-        pool.cli_advance()
-        nxt = pool.cli_current()
+        local_idx = (local_idx + 1) % n_accounts
+        nxt_name = account_names[local_idx]
         hint_str = f" ({result.reset_hint})" if result.reset_hint else ""
         sys.stderr.write(
-            f"\r\n⚡ {acct.name} hit usage limit{hint_str}. Switching to {nxt.name} and resuming...\r\n"
+            f"\r\n⚡ {acct.name} hit usage limit{hint_str}. Switching to {nxt_name} and resuming...\r\n"
         )
         sys.stderr.flush()
         time.sleep(2)
